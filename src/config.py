@@ -11,6 +11,12 @@ DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "")
 DASHSCOPE_MODEL = os.getenv("DASHSCOPE_MODEL", "qwen-turbo")
 DASHSCOPE_FINETUNED_MODEL = os.getenv("DASHSCOPE_FINETUNED_MODEL", "")
 
+# Claude API配置 (阿里云Anthropic兼容)
+ANTHROPIC_AUTH_TOKEN = os.getenv("ANTHROPIC_AUTH_TOKEN", "")
+ANTHROPIC_BASE_URL = os.getenv("ANTHROPIC_BASE_URL", "https://coding.dashscope.aliyuncs.com/apps/anthropic")
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "glm-5")
+SKILL_PATH = os.getenv("SKILL_PATH", "D:\\code\\.claude\\skills\\自己")
+
 # 系统提示词
 SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT", "")
 
@@ -28,3 +34,4 @@ MIN_TRAIN_SAMPLES = int(os.getenv("MIN_TRAIN_SAMPLES", "500"))
 # 自动监听配置
 LISTEN_INTERVAL = float(os.getenv("LISTEN_INTERVAL", "1.0"))  # 监听间隔（秒）
 AUTO_REPLY_ENABLED = os.getenv("AUTO_REPLY_ENABLED", "true").lower() == "true"  # 是否启用自动回复
+STARTUP_COOLDOWN = float(os.getenv("STARTUP_COOLDOWN", "5.0"))  # 启动冷却期（秒）

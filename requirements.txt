@@ -6,6 +6,9 @@ python-dotenv>=1.0.0
 # 阿里云百炼SDK
 dashscope>=1.14.0
 
+# Claude API SDK
+anthropic>=0.18.0
+
 # 微信自动化
 pyautogui>=0.9.54
 pyperclip>=1.8.0

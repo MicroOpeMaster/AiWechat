@@ -11,7 +11,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / '.env')
 
-from src.config import DASHSCOPE_API_KEY, DASHSCOPE_MODEL, DASHSCOPE_FINETUNED_MODEL
+from src.config import (
+    DASHSCOPE_API_KEY, DASHSCOPE_MODEL, DASHSCOPE_FINETUNED_MODEL,
+    ANTHROPIC_AUTH_TOKEN, ANTHROPIC_BASE_URL, ANTHROPIC_MODEL, SKILL_PATH
+)
 from src.wxauto_bot import WxAutoBot
 from src.auto_listener import AutoListener
 from src.model_api import BailianAPI, ChatHistoryManager
@@ -21,22 +24,36 @@ def main():
     parser = argparse.ArgumentParser(description='微信AI聊天机器人')
     parser.add_argument('--mode', choices=['auto', 'hotkey'], default='auto',
                         help='运行模式: auto=全自动监听, hotkey=热键触发')
+    parser.add_argument('--api', choices=['bailian', 'claude'], default='bailian',
+                        help='API类型: bailian=阿里云百炼, claude=Claude API')
     args = parser.parse_args()
 
     print("=" * 50, flush=True)
     print("微信AI聊天机器人", flush=True)
     print("=" * 50, flush=True)
 
-    if not DASHSCOPE_API_KEY:
-        print("错误: 请配置 DASHSCOPE_API_KEY", flush=True)
-        return
+    # 根据参数选择API
+    if args.api == 'claude':
+        if not ANTHROPIC_AUTH_TOKEN:
+            print("错误: 请配置 ANTHROPIC_AUTH_TOKEN", flush=True)
+            return
+        from src.claude_api import ClaudeAPI
+        api = ClaudeAPI(
+            auth_token=ANTHROPIC_AUTH_TOKEN,
+            base_url=ANTHROPIC_BASE_URL,
+            model=ANTHROPIC_MODEL,
+            skill_path=SKILL_PATH
+        )
+    else:
+        if not DASHSCOPE_API_KEY:
+            print("错误: 请配置 DASHSCOPE_API_KEY", flush=True)
+            return
+        model = DASHSCOPE_FINETUNED_MODEL or DASHSCOPE_MODEL
+        print(f"模型: {model}", flush=True)
+        api = BailianAPI(api_key=DASHSCOPE_API_KEY, model=model)
 
-    model = DASHSCOPE_FINETUNED_MODEL or DASHSCOPE_MODEL
-    print(f"模型: {model}", flush=True)
     print(f"模式: {args.mode}", flush=True)
-
-    # 创建 API 实例
-    api = BailianAPI(api_key=DASHSCOPE_API_KEY, model=model)
+    print(f"API: {args.api}", flush=True)
 
     if args.mode == 'auto':
         # 全自动监听模式

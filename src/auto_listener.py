@@ -24,7 +24,7 @@ except ImportError:
 
 from src.config import (
     BOT_NAME, ALIAS_WHITELIST, ROOM_WHITELIST,
-    AUTO_REPLY_PREFIX, LISTEN_INTERVAL, AUTO_REPLY_ENABLED
+    AUTO_REPLY_PREFIX, LISTEN_INTERVAL, AUTO_REPLY_ENABLED, STARTUP_COOLDOWN
 )
 from src.model_api import BailianAPI, ChatHistoryManager
 
@@ -89,6 +89,9 @@ class AutoListener:
 
         # 是否使用 wxauto 模式
         self._use_wxauto = False
+
+        # 启动时间（用于冷却期）
+        self._start_time: Optional[float] = None
 
     def init(self) -> bool:
         """初始化微信连接"""
@@ -304,6 +307,10 @@ class AutoListener:
             msg: 消息内容（可能是列表、字符串或消息对象）
         """
         try:
+            # 冷却期检查：启动后一段时间内不处理消息
+            if self._start_time and (time.time() - self._start_time) < STARTUP_COOLDOWN:
+                return
+
             # 提取聊天名称
             # wxauto ChatWindow 的字符串格式: <wxauto Chat Window at 0x... for bot>
             # 从 "for xxx" 部分提取名称
@@ -359,6 +366,21 @@ class AutoListener:
             print("未设置监听对象")
             return False
 
+        # 先获取一次消息作为历史记录，避免重复回复旧消息
+        print("正在初始化消息历史...")
+        try:
+            initial_msgs = self.wx.GetListenMessage()
+            if initial_msgs:
+                for chat_window, msg_list in initial_msgs.items():
+                    for msg in msg_list:
+                        self._mark_as_processed(chat_window, msg)
+                print("已记录历史消息")
+        except Exception as e:
+            print(f"初始化历史消息失败: {e}")
+
+        # 设置启动时间（冷却期）
+        self._start_time = time.time()
+
         self.running = True
         self._thread = threading.Thread(target=self._listen_loop, daemon=True)
         self._thread.start()
@@ -369,11 +391,36 @@ class AutoListener:
         print(f"监听对象: {', '.join(self.listen_chats) or '无'}")
         print(f"机器人名称: {BOT_NAME or '未设置'}")
         print(f"监听间隔: {LISTEN_INTERVAL}秒")
+        print(f"启动冷却期: {STARTUP_COOLDOWN}秒")
         print("")
         print("按 Ctrl+C 停止")
         print("=" * 50)
 
         return True
+
+    def _mark_as_processed(self, chat_window, msg):
+        """将消息标记为已处理（不回复）"""
+        try:
+            chat_window_str = str(chat_window)
+            if ' for ' in chat_window_str:
+                chat_name = chat_window_str.split(' for ')[-1].rstrip('>')
+            else:
+                chat_name = getattr(chat_window, 'name', chat_window_str)
+
+            if isinstance(msg, (list, tuple)) and len(msg) >= 2:
+                sender_type = msg[0]
+                content = msg[1]
+            elif isinstance(msg, str):
+                content = msg
+            elif isinstance(msg, dict):
+                content = msg.get('content', '')
+            else:
+                content = getattr(msg, 'content', str(msg))
+
+            msg_id = f"{chat_name}:{sender_type if isinstance(msg, (list, tuple)) else 'friend'}:{content[:50]}"
+            self._processed_msgs.add(msg_id)
+        except:
+            pass
 
     def stop(self):
         """停止监听"""
